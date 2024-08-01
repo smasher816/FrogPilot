@@ -542,7 +542,7 @@ VAL_ 1041 PCS_SENSITIVITY 64 "high sensitivity"  128 "mid sensitivity" 192 "low 
 VAL_ 1042 LDA_ALERT 3 "hold with continuous beep" 2 "LDA unavailable" 1 "hold" 0 "none";
 VAL_ 1042 BARRIERS 3 "left" 2 "right" 1 "both" 0 "none";
 VAL_ 1042 RIGHT_LINE 3 "orange" 2 "faded" 1 "solid" 0 "none";
-VAL_ 1042 LKAS_STATUS 1 "on" 0 "off";
+VAL_ 1042 LKAS_STATUS 2 "green" 1 "white" 0 "off";
 VAL_ 1042 LEFT_LINE 3 "orange" 2 "faded" 1 "solid" 0 "none";
 VAL_ 1042 LDA_ON_MESSAGE 2 "Lane Departure Alert Turned ON, Steering Assist Inactive" 1 "Lane Departure Alert Turned ON, Steering Assist Active" 0 "clear";
 VAL_ 1042 LDA_SA_TOGGLE  2 "steering assist off" 1 "steering assist on";

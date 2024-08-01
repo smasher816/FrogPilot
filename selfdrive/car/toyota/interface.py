@@ -191,6 +191,7 @@ class CarInterface(CarInterfaceBase):
 
     # events
     events = self.create_common_events(ret)
+    self.CS.always_on_lateral_disabled = self.always_on_lateral_disabled
 
     # Lane Tracing Assist control is unavailable (EPS_STATUS->LTA_STATE=0) until
     # the more accurate angle sensor signal is initialized
