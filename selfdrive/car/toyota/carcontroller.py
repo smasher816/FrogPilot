@@ -337,9 +337,12 @@ class CarController(CarControllerBase):
         send_ui = True
 
       if self.frame % 20 == 0 or send_ui:
+        always_on_lateral_enabled = frogpilot_toggles.always_on_lateral_main or CS.out.cruiseState.enabled
+        always_on_lateral_enabled &= frogpilot_toggles.always_on_lateral
+        always_on_lateral_enabled &= not frogpilot_toggles.always_on_lateral_lkas
         can_sends.append(toyotacan.create_ui_command(self.packer, steer_alert, pcm_cancel_cmd, hud_control.leftLaneVisible,
                                                      hud_control.rightLaneVisible, hud_control.leftLaneDepart,
-                                                     hud_control.rightLaneDepart, CC.enabled, CS.lkas_hud, lat_active))
+                                                     hud_control.rightLaneDepart, CC.enabled, CS.lkas_hud, always_on_lateral_enabled, lat_active))
 
       if (self.frame % 100 == 0 or send_ui) and (self.CP.enableDsu or self.CP.flags & ToyotaFlags.DISABLE_RADAR.value):
         can_sends.append(toyotacan.create_fcw_command(self.packer, fcw_alert))
