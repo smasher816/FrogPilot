@@ -239,7 +239,8 @@ class Controls:
     # Add startup event
     if self.startup_event is not None:
       if self.startup_event == FrogPilotEventName.customStartupAlert:
-        self.frogpilot_events.add(self.startup_event)
+        # self.frogpilot_events.add(self.startup_event)
+        pass
       else:
         self.events.add(self.startup_event)
       self.startup_event = None
