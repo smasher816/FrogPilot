@@ -204,7 +204,7 @@ class ThemeManager:
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
       zip_ref.extractall(extract_path)
     os.remove(zip_file)
-    print(f"Extraction completed and zip file deleted.")
+    print("Extraction completed and zip file deleted.")
 
   def handle_existing_theme(self, theme_name, theme_param):
     print(f"Theme {theme_name} already exists, skipping download...")
