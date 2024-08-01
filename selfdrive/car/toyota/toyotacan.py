@@ -62,9 +62,9 @@ def create_acc_cancel_command(packer):
   return packer.make_can_msg("PCM_CRUISE", 0, values)
 
 
-def create_fcw_command(packer, fcw):
+def create_fcw_command(packer, pcs_hack, fcw):
   values = {
-    "PCS_INDICATOR": 1,  # PCS turned off
+    "PCS_INDICATOR": 1 if not pcs_hack else 0,
     "FCW": fcw,
     "SET_ME_X20": 0x20,
     "SET_ME_X10": 0x10,

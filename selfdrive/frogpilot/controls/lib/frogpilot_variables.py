@@ -234,6 +234,7 @@ class FrogPilotVariables:
     toggle.set_speed_offset = self.params.get_int("SetSpeedOffset") * (1. if toggle.is_metric else CV.MPH_TO_KPH) if quality_of_life_controls and not pcm_cruise else 0
 
     toggle.sng_hack = openpilot_longitudinal and car_make == "toyota" and self.params.get_bool("SNGHack")
+    toggle.pcs_hack = openpilot_longitudinal and car_make == "toyota" and self.params.get_bool("PCSHack")
 
     toggle.speed_limit_controller = openpilot_longitudinal and self.params.get_bool("SpeedLimitController")
     toggle.force_mph_dashboard = toggle.speed_limit_controller and self.params.get_bool("ForceMPHDashboard")

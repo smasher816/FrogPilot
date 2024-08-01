@@ -311,6 +311,7 @@ def manager_init() -> None:
     ("SLCPriority3", "Navigation"),
     ("SmoothBraking", "1"),
     ("SNGHack", "1"),
+    ("PCSHack", "0"),
     ("SpeedLimitChangedAlert", "1"),
     ("SpeedLimitController", "1"),
     ("StandardFollow", "1.45"),

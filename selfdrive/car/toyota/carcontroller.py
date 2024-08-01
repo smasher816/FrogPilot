@@ -254,7 +254,7 @@ class CarController(CarControllerBase):
                                                      hud_control.rightLaneDepart, CC.enabled, CS.lkas_hud, self.always_on_lateral_enabled, lat_active))
 
       if (self.frame % 100 == 0 or send_ui) and (self.CP.enableDsu or self.CP.flags & ToyotaFlags.DISABLE_RADAR.value):
-        can_sends.append(toyotacan.create_fcw_command(self.packer, fcw_alert))
+        can_sends.append(toyotacan.create_fcw_command(self.packer, frogpilot_toggles.pcs_hack, fcw_alert))
 
     # *** static msgs ***
     for addr, cars, bus, fr_step, vl in STATIC_DSU_MSGS:
