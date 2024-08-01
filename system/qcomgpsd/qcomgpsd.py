@@ -131,9 +131,12 @@ def downloader_loop(event):
 
 @retry(attempts=5, delay=0.2, ignore_failure=True)
 def inject_assistance():
-  cmd = f"mmcli -m any --timeout 30 --location-inject-assistance-data={ASSIST_DATA_FILE}"
-  subprocess.check_output(cmd, stderr=subprocess.PIPE, shell=True)
-  cloudlog.info("successfully loaded assistance data")
+  try:
+    cmd = f"mmcli -m any --timeout 30 --location-inject-assistance-data={ASSIST_DATA_FILE}"
+    subprocess.check_output(cmd, stderr=subprocess.PIPE, shell=True)
+    cloudlog.info("successfully loaded assistance data")
+  except subprocess.CalledProcessError:
+    pass
 
 @retry(attempts=5, delay=1.0)
 def setup_quectel(diag: ModemDiag) -> bool:
