@@ -243,7 +243,7 @@ class Controls:
 
     # Add startup event
     if self.startup_event is not None:
-      self.events.add(self.startup_event)
+      #self.events.add(self.startup_event)
       self.startup_event = None
 
     # Don't add any more events if not initialized
