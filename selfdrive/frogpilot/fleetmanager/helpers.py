@@ -317,7 +317,7 @@ def set_destination(postvars, valid_addr):
   else:
     addr = postvars.get("place_name")
     token = get_public_token()
-    data, lon, lat, valid_addr, token = search_addr(addr, lon, lat, valid_addr, token)
+    data, lon, lat, valid_addr, token = search_addr(addr, None, None, valid_addr, token)
     postvars["lat"] = lat
     postvars["lon"] = lon
     postvars["save_type"] = "recent"
