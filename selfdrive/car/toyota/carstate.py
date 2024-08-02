@@ -67,6 +67,12 @@ class CarState(CarStateBase):
     self.acc_type = 1
     self.lkas_hud = {}
 
+    self.lkas_enabled = None
+    self.prev_lkas_enabled = None
+    self.lta_status = False
+    self.prev_lta_status = False
+    self.lta_status_active = False
+
     # FrogPilot variables
     self.zss_compute = False
     self.zss_cruise_active_last = False
@@ -79,6 +85,9 @@ class CarState(CarStateBase):
   def update(self, cp, cp_cam, frogpilot_toggles):
     ret = car.CarState.new_message()
     fp_ret = custom.FrogPilotCarState.new_message()
+
+    self.prev_lkas_enabled = self.lkas_enabled
+    self.prev_lta_status = self.lta_status
 
     ret.doorOpen = any([cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_FL"], cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_FR"],
                         cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_RL"], cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_RR"]])
@@ -222,9 +231,18 @@ class CarState(CarStateBase):
     fp_ret.sportGear = cp.vl["GEAR_PACKET"]['SPORT_ON_2' if self.CP.flags & ToyotaFlags.NO_DSU else 'SPORT_ON'] == 1
 
     if self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
-      self.lkas_previously_enabled = self.lkas_enabled
-      message_keys = ["LDA_ON_MESSAGE", "SET_ME_X02"]
-      self.lkas_enabled = any(self.lkas_hud.get(key) == 1 for key in message_keys)
+      self.lta_status = cp_cam.vl["LKAS_HUD"]["SET_ME_X02"]
+      if ((self.prev_lta_status == 16 and self.lta_status == 0) or
+          (self.prev_lta_status == 0 and self.lta_status == 16)) and not self.lta_status_active:
+        self.lta_status_active = True
+      if self.prev_lta_status is None:
+        self.prev_lta_status = self.lta_status
+    if self.lta_status_active:
+      self.lkas_enabled = self.lta_status > 0
+    elif self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
+      self.lkas_enabled = cp_cam.vl["LKAS_HUD"]["LKAS_STATUS"]
+    if self.prev_lkas_enabled is None:
+      self.prev_lkas_enabled = self.lkas_enabled
 
     self.pcm_accel_net = cp.vl["PCM_CRUISE"]["ACCEL_NET"]
     self.pcm_neutral_force = cp.vl["PCM_CRUISE"]["NEUTRAL_FORCE"]
