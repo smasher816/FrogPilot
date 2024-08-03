@@ -186,6 +186,7 @@ class CarInterface(CarInterfaceBase):
       ret.buttonEvents = [
         *create_button_events(self.CS.cruise_decreased, self.CS.cruise_decreased_previously, {1: ButtonType.decelCruise}),
         *create_button_events(self.CS.cruise_increased, self.CS.cruise_increased_previously, {1: ButtonType.accelCruise}),
+        *create_button_events(self.CS.pcm_follow_distance != self.CS.prev_pcm_follow_distance, False, {1: ButtonType.gapAdjustCruise}),
         *create_button_events(self.CS.lkas_enabled != self.CS.prev_lkas_enabled, False, {1: FrogPilotButtonType.lkas}),
       ]
 

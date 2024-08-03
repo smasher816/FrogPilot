@@ -208,12 +208,12 @@ class CarController(CarControllerBase):
       accel_raw = -2.5 if stopping and self.cydia_tune else actuators.accel
 
       # Press distance button until we are at the correct bar length. Only change while enabled to avoid skipping startup popup
-      if self.frame % 6 == 0 and self.CP.openpilotLongitudinalControl:
-        desired_distance = 4 - hud_control.leadDistanceBars
-        if CS.out.cruiseState.enabled and CS.pcm_follow_distance != desired_distance:
-          self.distance_button = not self.distance_button
-        else:
-          self.distance_button = 0
+      #if self.frame % 6 == 0 and self.CP.openpilotLongitudinalControl:
+      #  desired_distance = 4 - hud_control.leadDistanceBars
+      #  if CS.out.cruiseState.enabled and CS.pcm_follow_distance != desired_distance:
+      #    self.distance_button = not self.distance_button
+      #  else:
+      #    self.distance_button = 0
 
       # Lexus IS uses a different cancellation message
       if pcm_cancel_cmd and self.CP.carFingerprint in UNSUPPORTED_DSU_CAR:
