@@ -52,14 +52,18 @@ class CarInterface(CarInterfaceBase):
     # 0x2AA is sent by a similar device which intercepts the radar instead of DSU on NO_DSU_CARs
     if 0x2FF in fingerprint[0] or (0x2AA in fingerprint[0] and candidate in NO_DSU_CAR):
       ret.flags |= ToyotaFlags.SMART_DSU.value
+      print("***************** SMART_DSU")
 
     if 0x2AA in fingerprint[0] and candidate in NO_DSU_CAR:
       ret.flags |= ToyotaFlags.RADAR_CAN_FILTER.value
+      print("***************** RADAR_CAN_FILTER")
 
     # In TSS2 cars, the camera does long control
     found_ecus = [fw.ecu for fw in car_fw]
     ret.enableDsu = len(found_ecus) > 0 and Ecu.dsu not in found_ecus and candidate not in (NO_DSU_CAR | UNSUPPORTED_DSU_CAR) \
                                         and not (ret.flags & ToyotaFlags.SMART_DSU)
+    print("******************* NO_DSU = ", candidate in (NO_DSU_CAR | UNSUPPORTED_DSU_CAR))
+    print("******************* enableDsu = ", ret.enableDsu)
 
     if Ecu.hybrid in found_ecus:
       ret.flags |= ToyotaFlags.HYBRID.value
@@ -99,23 +103,31 @@ class CarInterface(CarInterfaceBase):
     # TODO: Some TSS-P platforms have BSM, but are flipped based on region or driving direction.
     # Detect flipped signals and enable for C-HR and others
     ret.enableBsm = 0x3F6 in fingerprint[0] and candidate in TSS2_CAR
+    print("***************** enableBsm =", ret.enableBsm)
 
     # No radar dbc for cars without DSU which are not TSS 2.0
     # TODO: make an adas dbc file for dsu-less models
     ret.radarUnavailable = DBC[candidate]['radar'] is None or candidate in (NO_DSU_CAR - TSS2_CAR)
+    print("***************** DBC[candidate][radar]", DBC[candidate]['radar'])
+    print("***************** NO_DSU_CAR - TSS2_CAR", NO_DSU_CAR - TSS2_CAR)
+    print("***************** radarUnavailable =", ret.radarUnavailable)
 
     # if the smartDSU is detected, openpilot can send ACC_CONTROL and the smartDSU will block it from the DSU or radar.
     # since we don't yet parse radar on TSS2/TSS-P radar-based ACC cars, gate longitudinal behind experimental toggle
     use_sdsu = bool(ret.flags & ToyotaFlags.SMART_DSU)
+    print("***************** use_sdsu = ", use_sdsu)
     if candidate in (RADAR_ACC_CAR | NO_DSU_CAR):
       ret.experimentalLongitudinalAvailable = use_sdsu or candidate in RADAR_ACC_CAR
+      print("***************** experimentalLongitudinalAvailable =", ret.experimentalLongitudinalAvailable)
 
       if not use_sdsu:
         # Disabling radar is only supported on TSS2 radar-ACC cars
         if experimental_long and candidate in RADAR_ACC_CAR:
           ret.flags |= ToyotaFlags.DISABLE_RADAR.value
+          print("***************** DISABLE_RADAR")
       else:
         use_sdsu = use_sdsu and experimental_long
+        print("***************** use_sdsu =", use_sdsu)
 
     # openpilot longitudinal enabled by default:
     #  - non-(TSS2 radar ACC cars) w/ smartDSU installed
@@ -130,20 +142,26 @@ class CarInterface(CarInterfaceBase):
       ret.openpilotLongitudinalControl = False
     else:
       ret.openpilotLongitudinalControl = use_sdsu or ret.enableDsu or candidate in (TSS2_CAR - RADAR_ACC_CAR) or bool(ret.flags & ToyotaFlags.DISABLE_RADAR.value)
+    print("***************** openpilotLongitudinalControl =", ret.openpilotLongitudinalControl)
+    print("***************** disable_openpilot_long =", disable_openpilot_long)
     ret.openpilotLongitudinalControl &= not disable_openpilot_long
 
     ret.autoResumeSng = ret.openpilotLongitudinalControl and candidate in NO_STOP_TIMER_CAR
+    print("***************** autoResumeSng =", ret.autoResumeSng)
     ret.enableGasInterceptor = 0x201 in fingerprint[0] and ret.openpilotLongitudinalControl
 
     if not ret.openpilotLongitudinalControl:
+      print("***************** STOCK TOYOTA ACC")
       ret.safetyConfigs[0].safetyParam |= Panda.FLAG_TOYOTA_STOCK_LONGITUDINAL
 
     if ret.enableGasInterceptor:
+      print("***************** COMMA PEDAL")
       ret.safetyConfigs[0].safetyParam |= Panda.FLAG_TOYOTA_GAS_INTERCEPTOR
 
     # min speed to enable ACC. if car can do stop and go, then set enabling speed
     # to a negative value, so it won't matter.
     ret.minEnableSpeed = -1. if (candidate in STOP_AND_GO_CAR or ret.enableGasInterceptor) else MIN_ACC_SPEED
+    print("***************** minEnableSpeed =", ret.minEnableSpeed)
 
     ret.flags |= ToyotaFlags.RAISED_ACCEL_LIMIT.value
 
@@ -161,6 +179,7 @@ class CarInterface(CarInterfaceBase):
   def init(CP, logcan, sendcan):
     # disable radar if alpha longitudinal toggled on radar-ACC car without CAN filter/smartDSU
     if CP.flags & ToyotaFlags.DISABLE_RADAR.value:
+      print("***************** Sending radar disable")
       communication_control = bytes([uds.SERVICE_TYPE.COMMUNICATION_CONTROL, uds.CONTROL_TYPE.ENABLE_RX_DISABLE_TX, uds.MESSAGE_TYPE.NORMAL])
       disable_ecu(logcan, sendcan, bus=0, addr=0x750, sub_addr=0xf, com_cont_req=communication_control)
 
