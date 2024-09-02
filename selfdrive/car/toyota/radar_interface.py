@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 from opendbc.can.parser import CANParser
 from cereal import car
-from openpilot.selfdrive.car.toyota.values import DBC, TSS2_CAR
+from openpilot.selfdrive.car.toyota.values import DBC, TSS2_CAR, RADAR_ACC_CAR
 from openpilot.selfdrive.car.interfaces import RadarInterfaceBase
 
 
 def _create_radar_can_parser(car_fingerprint):
-  if car_fingerprint in TSS2_CAR:
-    RADAR_A_MSGS = list(range(0x180, 0x190))
-    RADAR_B_MSGS = list(range(0x190, 0x1a0))
+  if car_fingerprint in RADAR_ACC_CAR:
+    print("***************** _create_radar_can_parser TSS2.5 -> None")
+    return None
+  elif car_fingerprint in TSS2_CAR:
+    print("***************** _create_radar_can_parser TSS2")
+    RADAR_A_MSGS = list(range(0x180, 0x187))
+    RADAR_B_MSGS = list(range(0x190, 0x197))
   else:
+    print("***************** _create_radar_can_parser TSSP")
+    RADAR_A_MSGS = list(range(0x180, 0x190))
     RADAR_A_MSGS = list(range(0x210, 0x220))
     RADAR_B_MSGS = list(range(0x220, 0x230))
 
@@ -25,6 +31,7 @@ class RadarInterface(RadarInterfaceBase):
     self.track_id = 0
     self.radar_ts = CP.radarTimeStep
 
+    print("***************** RadarInterface.__init__")
     if CP.carFingerprint in TSS2_CAR:
       self.RADAR_A_MSGS = list(range(0x180, 0x190))
       self.RADAR_B_MSGS = list(range(0x190, 0x1a0))
@@ -35,6 +42,7 @@ class RadarInterface(RadarInterfaceBase):
     self.valid_cnt = {key: 0 for key in self.RADAR_A_MSGS}
 
     self.rcp = None if CP.radarUnavailable else _create_radar_can_parser(CP.carFingerprint)
+    print("***************** RadarCanParser =", self.rcp)
     self.trigger_msg = self.RADAR_B_MSGS[-1]
     self.updated_messages = set()
 
@@ -54,6 +62,7 @@ class RadarInterface(RadarInterfaceBase):
     return rr
 
   def _update(self, updated_messages):
+    print("***************** got RadarData update")
     ret = car.RadarData.new_message()
     errors = []
     if not self.rcp.can_valid:
@@ -91,4 +100,5 @@ class RadarInterface(RadarInterfaceBase):
             del self.pts[ii]
 
     ret.points = list(self.pts.values())
+    print("*****************", ret.points)
     return ret

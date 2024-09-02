@@ -87,7 +87,7 @@ class ToyotaTSS2PlatformConfig(PlatformConfig):
     self.flags |= ToyotaFlags.TSS2 | ToyotaFlags.NO_STOP_TIMER | ToyotaFlags.NO_DSU
 
     if self.flags & ToyotaFlags.RADAR_ACC:
-      self.dbc_dict = dbc_dict('toyota_nodsu_pt_generated', None)
+      self.dbc_dict = dbc_dict('toyota_nodsu_pt_generated', 'toyota_tss2_adas')
 
 
 class CAR(Platforms):
