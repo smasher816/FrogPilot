@@ -71,7 +71,7 @@ class CarInterface(CarInterfaceBase):
     print("******************* NO_DSU = ", candidate in (NO_DSU_CAR | UNSUPPORTED_DSU_CAR))
     print("******************* enableDsu = ", ret.enableDsu)
 
-    if candidate == CAR.LEXUS_ES_TSS2 and Ecu.hybrid not in found_ecus:
+    if True:
       ret.flags |= ToyotaFlags.RAISED_ACCEL_LIMIT.value
 
     if candidate == CAR.TOYOTA_PRIUS:
