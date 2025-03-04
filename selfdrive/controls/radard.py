@@ -18,7 +18,7 @@ from openpilot.common.simple_kalman import KF1D
 from openpilot.frogpilot.common.frogpilot_variables import get_frogpilot_toggles
 
 # Default lead acceleration decay set to 50% at 1s
-_LEAD_ACCEL_TAU = 1.5
+_LEAD_ACCEL_TAU = 0.6
 
 # radar tracks
 SPEED, ACCEL = 0, 1     # Kalman filter states enum
@@ -168,13 +168,16 @@ def match_vision_to_track(v_ego: float, lead: capnp._DynamicStructReader, tracks
 
 def get_RadarState_from_vision(lead_msg: capnp._DynamicStructReader, v_ego: float, model_v_ego: float):
   lead_v_rel_pred = lead_msg.v[0] - model_v_ego
+  prev_aLeadK = getattr(get_RadarState_from_vision, "prev_aLeadK", 0.0)
+  blended_aLeadK = 0.8 * float(lead_msg.a[0]) + 0.2 * prev_aLeadK
+  get_RadarState_from_vision.prev_aLeadK = blended_aLeadK
   return {
     "dRel": float(lead_msg.x[0] - RADAR_TO_CAMERA),
     "yRel": float(-lead_msg.y[0]),
     "vRel": float(lead_v_rel_pred),
     "vLead": float(v_ego + lead_v_rel_pred),
     "vLeadK": float(v_ego + lead_v_rel_pred),
-    "aLeadK": float(lead_msg.a[0]),
+    "aLeadK": blended_aLeadK,
     "aLeadTau": 0.3,
     "fcw": False,
     "modelProb": float(lead_msg.prob),
