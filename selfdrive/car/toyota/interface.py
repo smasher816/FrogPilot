@@ -55,6 +55,11 @@ class CarInterface(CarInterfaceBase):
     if 0x2AA in fingerprint[0] and candidate in NO_DSU_CAR:
       ret.flags |= ToyotaFlags.RADAR_CAN_FILTER.value
 
+    # XXX: Detect msg 0x201 on bus 1
+    # https://github.com/eFiniLan/openpilot-ext-radar-addon
+    if candidate in RADAR_ACC_CAR and (ret.flags & (ToyotaFlags.SMART_DSU | ToyotaFlags.RADAR_CAN_FILTER.value)):
+      ret.flags |= ToyotaFlags.EXTERNAL_RADAR_ADDON.value
+
     # In TSS2 cars, the camera does long control
     found_ecus = [fw.ecu for fw in car_fw]
     ret.enableDsu = len(found_ecus) > 0 and Ecu.dsu not in found_ecus and candidate not in (NO_DSU_CAR | UNSUPPORTED_DSU_CAR) \
@@ -98,7 +103,7 @@ class CarInterface(CarInterfaceBase):
 
     # No radar dbc for cars without DSU which are not TSS 2.0
     # TODO: make an adas dbc file for dsu-less models
-    ret.radarUnavailable = DBC[candidate]['radar'] is None or candidate in (NO_DSU_CAR - TSS2_CAR)
+    ret.radarUnavailable = (DBC[candidate]['radar'] is None or candidate in (NO_DSU_CAR - TSS2_CAR)) and not (ret.flags & ToyotaFlags.EXTERNAL_RADAR_ADDON)
 
     # if the smartDSU is detected, openpilot can send ACC_CONTROL and the smartDSU will block it from the DSU or radar.
     # since we don't yet parse radar on TSS2/TSS-P radar-based ACC cars, gate longitudinal behind experimental toggle

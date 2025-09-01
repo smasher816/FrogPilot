@@ -20,11 +20,13 @@ from openpilot.selfdrive.controls.controlsd import LaneChangeDirection, LaneChan
 
 # Order RadarTracks to prioritize which are published
 class SortType:
-  NEAREST = 0      # Cloest to car
-  CENTER = 1       # Closet to center of lane
-  SPEED = 2        # Most movement
+  RCS = 0          # Strongest signal
+  SAMPLE_COUNT = 1 # Most readings
+  NEAREST = 2      # Cloest to car
+  CENTER = 3       # Closet to center of lane
+  SPEED = 4        # Most movement
 
-SORT_BY = SortType.NEAREST
+SORT_BY = SortType.RCS
 MIN_OBJECTS = 1
 MAX_OBJECTS = 10
 
@@ -78,13 +80,15 @@ class Track:
 
     self.radarfulFilter = FirstOrderFilter(0, 0.5, self.K_A[0][1])
 
-  def update(self, d_rel: float, y_rel: float, v_rel: float, v_lead: float, measured: float):
+  def update(self, d_rel: float, y_rel: float, v_rel: float, v_lead: float, measured: bool, rcs: float, samples: int):
     # relative values, copy
     self.dRel = d_rel   # LONG_DIST
     self.yRel = y_rel   # -LAT_DIST
     self.vRel = v_rel   # REL_SPEED
     self.vLead = v_lead
     self.measured = measured   # measured or estimate
+    self.rcs = rcs
+    self.samples = samples
 
     # computed velocity and accelerations
     if self.cnt > 0:
@@ -181,7 +185,7 @@ def match_vision_to_track(v_ego: float, lead: capnp._DynamicStructReader, model_
     prob_d = laplacian_pdf(c.dRel, offset_vision_dist, lead.xStd[0])
     prob_y = laplacian_pdf(c.yRel, -lead.y[0], lead.yStd[0])
     prob_v = laplacian_pdf(c.vRel + v_ego, lead.v[0], lead.vStd[0])
-    prob_m = 1.0 if c.measured else 0.5
+    prob_m = 1.0 if c.measured else 0.1
 
     # This isn't exactly right, but it's a good heuristic
     return prob_d * prob_y * prob_v * prob_m
@@ -252,6 +256,10 @@ def get_lead(v_ego: float, ready: bool, tracks: dict[int, Track], lead_msg: capn
         closest_track = min(far_lead_tracks, key=lambda c: c.dRel)
         lead_dict = closest_track.get_RadarState()
 
+  # Radar points simetimes drift to the side when turning. Snap to vision is available
+  if lead_dict.get('radar', 'False') and vision_dict['status']:
+    lead_dict['yRel'] = vision_dict['yRel']
+
   leadTrackID = lead_dict.get('radarTrackId', -1)
   if leadTrackID != -1:
     for track in tracks.values():
@@ -275,7 +283,7 @@ def get_adjacent_lead(tracks: dict[int, Track], standstill: bool, model_data: ca
 
 
 class RadarD:
-  def __init__(self, radar_ts: float, delay: int = 0):
+  def __init__(self, radar_ts: float, delay: int, frogpilot_toggles):
     self.current_time = 0.0
 
     self.tracks: dict[int, Track] = {}
@@ -292,6 +300,7 @@ class RadarD:
 
     # FrogPilot variables
     self.frogpilot_radar_state: capnp._DynamicStructBuilder | None = None
+    self.frogpilot_toggles = frogpilot_toggles
 
     self.frogpilot_toggles = get_frogpilot_toggles()
 
@@ -312,9 +321,21 @@ class RadarD:
 
     ar_pts = {}
     for pt in radar_points:
-      ar_pts[pt.trackId] = [pt.dRel, pt.yRel, pt.vRel, pt.measured]
+      ar_pts[pt.trackId] = [pt.dRel, pt.yRel, pt.vRel, pt.measured, pt.rcs, pt.samples]
 
-    # *** remove missing points from meta data ***
+    # *** compute the tracks ***
+    for ids in ar_pts:
+      rpt = ar_pts[ids]
+
+      # align v_ego by a fixed time to align it with the radar measurement
+      v_lead = rpt[2] + self.v_ego_hist[0]
+
+      # create the track if it doesn't exist or it's a new track
+      if ids not in self.tracks:
+        self.tracks[ids] = Track(ids, v_lead, self.kalman_params)
+      self.tracks[ids].update(rpt[0], rpt[1], rpt[2], v_lead, rpt[3], rpt[4], rpt[5])
+
+    # *** remove bad and missing points ***
     for ids in list(self.tracks.keys()):
       outside_road_edges = False
       if len(sm['modelV2'].roadEdges) == 2 and len(sm['modelV2'].roadEdges[0].x) > 1 and len(sm['modelV2'].roadEdges[1].x) > 1:
@@ -331,18 +352,6 @@ class RadarD:
 
       if ids not in ar_pts or outside_road_edges:
         self.tracks.pop(ids, None)
-
-    # *** compute the tracks ***
-    for ids in ar_pts:
-      rpt = ar_pts[ids]
-
-      # align v_ego by a fixed time to align it with the radar measurement
-      v_lead = rpt[2] + self.v_ego_hist[0]
-
-      # create the track if it doesn't exist or it's a new track
-      if ids not in self.tracks:
-        self.tracks[ids] = Track(ids, v_lead, self.kalman_params)
-      self.tracks[ids].update(rpt[0], rpt[1], rpt[2], v_lead, rpt[3])
 
     # *** publish radarState ***
     self.radar_state_valid = sm.all_checks() and len(radar_errors) == 0
@@ -388,8 +397,11 @@ class RadarD:
     pm.send("frogpilotRadarState", frogpilot_radar_msg)
 
     # Sort by selected mode
-    tids = self.tracks.keys()
-    if SORT_BY == SortType.NEAREST:
+    if SORT_BY == SortType.RCS:
+      tids = sorted(self.tracks, key=lambda tid: self.tracks[tid].rcs, reverse=True)
+    elif SORT_BY == SortType.SAMPLE_COUNT:
+      tids = sorted(self.tracks, key=lambda tid: self.tracks[tid].samples, reverse=True)
+    elif SORT_BY == SortType.NEAREST:
       tids = sorted(self.tracks, key=lambda tid: self.tracks[tid].dRel)
     elif SORT_BY == SortType.CENTER:
       tids = sorted(self.tracks, key=lambda tid: abs(self.tracks[tid].yRel))
@@ -418,6 +430,8 @@ class RadarD:
         "vRel": float(self.tracks[tid].vRel),
         "measured": self.tracks[tid].measured,
         "leadTrackID": self.tracks[tid].leadTrackID,
+        "rcs": float(self.tracks[tid].rcs),
+        "samples": self.tracks[tid].samples,
       }
     pm.send('liveTracks', tracks_msg)
 
@@ -432,19 +446,25 @@ def main():
     CP = msg
   cloudlog.info("radard got CarParams")
 
+  frogpilot_toggles = get_frogpilot_toggles()
+
   # import the radar from the fingerprint
-  cloudlog.info("radard is importing %s", CP.carName)
-  RadarInterface = importlib.import_module(f'selfdrive.car.{CP.carName}.radar_interface').RadarInterface
+  if frogpilot_toggles.external_radar:
+    cloudlog.info("radard is importing %s", "MR76Radar")
+    from selfdrive.car.mr76_radar_interface import MR76RadarInterface
+    RI = MR76RadarInterface(CP)
+  else:
+    cloudlog.info("radard is importing %s", CP.carName)
+    RadarInterface = importlib.import_module(f'selfdrive.car.{CP.carName}.radar_interface').RadarInterface
+    RI = RadarInterface(CP)
 
   # *** setup messaging
   can_sock = messaging.sub_sock('can')
   sm = messaging.SubMaster(['modelV2', 'carState', 'frogpilotPlan'], frequency=int(1./DT_CTRL), ignore_alive=['frogpilotPlan'], ignore_valid=['frogpilotPlan'])
   pm = messaging.PubMaster(['radarState', 'liveTracks', 'frogpilotRadarState'])
 
-  RI = RadarInterface(CP)
-
   rk = Ratekeeper(1.0 / CP.radarTimeStep, print_delay_threshold=None)
-  RD = RadarD(CP.radarTimeStep, RI.delay)
+  RD = RadarD(CP.radarTimeStep, RI.delay, frogpilot_toggles)
 
   while 1:
     can_strings = messaging.drain_sock_raw(can_sock, wait_for_one=True)

@@ -181,6 +181,7 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(FrogPilotSettingsWindow *parent) 
     {"FrogsGoMoosTweak", tr("FrogsGoMoo's Personal Tweaks"), tr("<b>Personal tweaks by FrogsGoMoo for quicker acceleration and smoother braking.</b>"), ""},
     {"LockDoorsTimer", tr("Lock Doors On Ignition Off After"), tr("<b>Automatically lock the doors on ignition off</b> when no one is detected in the front seats."), ""},
     {"SNGHack", tr("Stop-and-Go Hack"), tr("<b>Force stop-and-go</b> on Lexus/Toyota vehicles without stock stop-and-go functionality."), ""},
+    {"ExternalRadar", tr("External Radar"), tr("<b>Use MR76 External Radar</b>"), ""},
 
     {"VehicleInfo", tr("Vehicle Info"), tr("<b>Information about your vehicle in regards to openpilot support and functionality.</b>"), ""},
     {"HardwareDetected", tr("3rd Party Hardware Detected"), tr("<b>Detected 3rd party hardware.</b>"), ""},
@@ -330,6 +331,7 @@ void FrogPilotVehiclesPanel::showEvent(QShowEvent *event) {
   hasOpenpilotLongitudinal = parent->hasOpenpilotLongitudinal;
   hasPedal = parent->hasPedal;
   hasSNG = parent->hasSNG;
+  hasExternalRadar = parent->hasExternalRadar;
   isC3 = parent->isC3;
   isGM = parent->isGM;
   isHKG = parent->isHKG;
@@ -343,6 +345,7 @@ void FrogPilotVehiclesPanel::showEvent(QShowEvent *event) {
   if (hasPedal) detected << "comma Pedal";
   if (parent->hasSDSU) detected << "SDSU";
   if (parent->hasZSS) detected << "ZSS";
+  if (parent->hasExternalRadar) detected << "Radar";
   static_cast<LabelControl*>(toggles["HardwareDetected"])->setText(detected.isEmpty() ? tr("None") : detected.join(", "));
 
   static_cast<LabelControl*>(toggles["BlindSpotSupport"])->setText(parent->hasBSM ? tr("Yes") : tr("No"));

@@ -17,6 +17,8 @@ struct RadarTrackData {
   bool measured;
   float dRel;
   float vRel;
+  float rcs; // -20 to +20
+  int samples;
 };
 
 struct FrogPilotUIScene {

@@ -686,6 +686,8 @@ struct LiveTracks {
   oncoming @9 :Bool;
   measured @10 :Bool;
   leadTrackID @11 :Int32;
+  rcs @12 :Float32;
+  samples @13 :Int32;
 }
 
 struct ControlsState @0x97ff69c53601abf1 {

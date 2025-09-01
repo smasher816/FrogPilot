@@ -214,6 +214,7 @@ frogpilot_default_params: list[tuple[str, str | bytes, int, str]] = [
   ("ExperimentalGMTune", "0", 2, "0"),
   ("ExperimentalLongitudinalEnabled", "0", 0, "0"),
   ("ExperimentalModeConfirmed", "0", 0, "0"),
+  ("ExternalRadar", "1", 2, "0"),
   ("Fahrenheit", "0", 3, "0"),
   ("FavoriteDestinations", "", 0, ""),
   ("ForceAutoTune", "0", 2, "0"),
@@ -558,6 +559,7 @@ class FrogPilotVariables:
     toggle.has_pedal = CP.enableGasInterceptor
     has_radar = not CP.radarUnavailable
     toggle.has_sdsu = toggle.car_make == "toyota" and bool(CP.flags & ToyotaFlags.SMART_DSU.value)
+    toggle.has_external_radar = True # bool(CP.flags & ToyotaFlags.EXTERNAL_RADAR_ADDON.value)
     has_sng = CP.autoResumeSng
     toggle.has_zss = toggle.car_make == "toyota" and bool(FPCP.fpFlags & ToyotaFrogPilotFlags.ZSS.value)
     is_angle_car = CP.steerControlType == car.CarParams.SteerControlType.angle
@@ -782,6 +784,7 @@ class FrogPilotVariables:
     toggle.force_fingerprint = (params.get_bool("ForceFingerprint") if tuning_level >= level["ForceFingerprint"] else default.get_bool("ForceFingerprint")) and toggle.car_model is not None
 
     toggle.frogsgomoo_tweak = toggle.openpilot_longitudinal and toggle.car_make == "toyota" and (params.get_bool("FrogsGoMoosTweak") if tuning_level >= level["FrogsGoMoosTweak"] else default.get_bool("FrogsGoMoosTweak"))
+    toggle.external_radar = params.get_bool("ExternalRadar") if tuning_level >= level["ExternalRadar"] else default.get_bool("ExternalRadar")
     toggle.stoppingDecelRate = 0.01 if toggle.frogsgomoo_tweak else toggle.stoppingDecelRate
     toggle.vEgoStarting = 0.1 if toggle.frogsgomoo_tweak else toggle.vEgoStarting
     toggle.vEgoStopping = 0.5 if toggle.frogsgomoo_tweak else toggle.vEgoStopping

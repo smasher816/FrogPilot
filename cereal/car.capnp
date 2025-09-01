@@ -313,6 +313,10 @@ struct RadarData @0x888ad6581cf0aacb {
 
     # some radars flag measurements VS estimates
     measured @6 :Bool;
+
+    # For addon radar
+    rcs @7 :Float32; # Signal strength - dB/m^2
+    samples @8 :UInt64; # How many samples has the point gotten
   }
 
   # deprecated

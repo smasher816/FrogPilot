@@ -178,6 +178,7 @@ def send_stats():
       .field("has_openpilot_longitudinal", frogpilot_toggles.openpilot_longitudinal)
       .field("has_pedal", frogpilot_toggles.has_pedal)
       .field("has_sdsu", frogpilot_toggles.has_sdsu)
+      .field("has_external_radar", frogpilot_toggles.has_external_radar)
       .field("has_zss", frogpilot_toggles.has_zss)
       .field("latitude", latitude)
       .field("longitude", longitude)

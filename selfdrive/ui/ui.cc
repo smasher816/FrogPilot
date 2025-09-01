@@ -91,6 +91,8 @@ void update_radar_tracks(capnp::List<cereal::LiveTracks>::Reader &tracks_msg, ce
       track.measured = track_msg.getMeasured();
       track.dRel = track_msg.getDRel();
       track.vRel = track_msg.getVRel();
+      track.rcs = track_msg.getRcs();
+      track.samples = track_msg.getSamples();
       frogpilot_scene.live_radar_tracks.push_back(track);
     }
   }

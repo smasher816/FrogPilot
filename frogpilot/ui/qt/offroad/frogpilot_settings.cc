@@ -271,6 +271,7 @@ void FrogPilotSettingsWindow::updateVariables() {
     hasSDSU = frogpilot_toggles.value("has_sdsu").toBool();
     hasSNG = hasOpenpilotLongitudinal && CP.getAutoResumeSng();
     hasZSS = frogpilot_toggles.value("has_zss").toBool();
+    hasExternalRadar = frogpilot_toggles.value("has_external_radar").toBool();
     isAngleCar = CP.getSteerControlType() == cereal::CarParams::SteerControlType::ANGLE;
     isBolt = carFingerprint == "CHEVROLET_BOLT_CC" || carFingerprint == "CHEVROLET_BOLT_EUV";
     isGM = carMake == "gm";
@@ -390,7 +391,7 @@ void FrogPilotSettingsWindow::updateVariables() {
     cereal::FrogPilotCarParams::Reader FPCP = fpcmsg.getRoot<cereal::FrogPilotCarParams>();
 
     canUsePedal = FPCP.getCanUsePedal();
-    canUseSDSU = FPCP.getCanUseSDSU();
+    canUseSDSU = FPCP.getCanUseSDSU() or hasSDSU;
     openpilotLongitudinalControlDisabled = FPCP.getOpenpilotLongitudinalControlDisabled();
   }
 

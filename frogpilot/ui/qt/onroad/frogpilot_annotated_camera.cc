@@ -576,8 +576,10 @@ void FrogPilotAnnotatedCameraWidget::paintRadarMetrics(QPainter &p, QPointF poin
     p.setFont(InterFont(35, QFont::Normal));
   }
 
-  QString text = QString("T%1 | %2 %3")
+  QString text = QString("T%1 | samples: %2 | RCS: %3 | %4 %5")
             .arg(radar_data.trackId)
+            .arg(radar_data.samples)
+            .arg(qRound(radar_data.rcs))
             .arg(QString::number(radar_data.vRel * speedConversionMetrics, 'f', 1))
             .arg(leadSpeedUnit);
 
@@ -747,8 +749,13 @@ void FrogPilotAnnotatedCameraWidget::paintRadarTracks(QPainter &p, const cereal:
   for (std::size_t i = 0; i < frogpilot_scene.live_radar_tracks.size(); ++i) {
     const RadarTrackData &track = frogpilot_scene.live_radar_tracks[i];
 
-    float diameter = 25.f;
-    float alpha = 255.; // np.interp(strength, [0, 60], [100, 255])
+    // adjust size based on signal strength
+    float diameter = 0.25f * track.rcs + 20.f; // np.interp(samples, [-20, +20], [15, 25])
+    diameter = std::clamp(diameter, 15.f, 25.f);
+
+    // fade in over time
+    float alpha = 2.6f * track.samples + 100; // np.interp(strength, [0, 60], [100, 255])
+    alpha = std::clamp(alpha, 100.f, 255.f);
 
     // glow
     if (track.samples > 100) {
@@ -760,9 +767,9 @@ void FrogPilotAnnotatedCameraWidget::paintRadarTracks(QPainter &p, const cereal:
     if (track.trackId == track.leadTrackID) {
       p.setBrush(greenColor(alpha));
     } else if (track.measured) {
-      p.setBrush(redColor());
+      p.setBrush(redColor(alpha));
     } else {
-      p.setBrush(blueColor());
+      p.setBrush(blueColor(alpha));
     }
     p.drawEllipse(track.calibrated_point, diameter / 2.0f, diameter / 2.0f);
 
@@ -774,7 +781,6 @@ void FrogPilotAnnotatedCameraWidget::paintRadarTracks(QPainter &p, const cereal:
         point = scene.lead_vertices[0];
       }
 
-    if (frogpilot_toggles.value("lead_metrics").toBool()) {
       if (has_radar_lead) {
         if (track.trackId == track.leadTrackID) {
           paintRadarMetrics(p, point, track, has_lead_chevron);

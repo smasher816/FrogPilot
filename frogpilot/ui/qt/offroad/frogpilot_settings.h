@@ -26,6 +26,7 @@ public:
   bool hasSDSU = false;
   bool hasSNG = false;
   bool hasZSS = false;
+  bool hasExternalRadar = false;
   bool isAngleCar = false;
   bool isBolt = false;
   bool isC3 = false;
