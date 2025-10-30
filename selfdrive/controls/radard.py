@@ -295,7 +295,15 @@ class RadarD:
 
     # *** remove missing points from meta data ***
     for ids in list(self.tracks.keys()):
-      if ids not in ar_pts:
+      outside_road_edges = False
+      if len(sm['modelV2'].roadEdges) == 2 and len(sm['modelV2'].roadEdges[0].x) > 1 and len(sm['modelV2'].roadEdges[1].x) > 1:
+        left_edge_y = interp(self.tracks[ids].dRel, sm['modelV2'].roadEdges[0].x, sm['modelV2'].roadEdges[0].y)
+        right_edge_y = interp(self.tracks[ids].dRel, sm['modelV2'].roadEdges[1].x, sm['modelV2'].roadEdges[1].y)
+
+        if not (right_edge_y < -self.tracks[ids].yRel < left_edge_y):
+          outside_road_edges = True
+
+      if ids not in ar_pts or outside_road_edges:
         self.tracks.pop(ids, None)
 
     # *** compute the tracks ***
