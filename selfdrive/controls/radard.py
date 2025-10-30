@@ -165,9 +165,10 @@ def match_vision_to_track(v_ego: float, lead: capnp._DynamicStructReader, model_
     prob_d = laplacian_pdf(c.dRel, offset_vision_dist, lead.xStd[0])
     prob_y = laplacian_pdf(c.yRel, -lead.y[0], lead.yStd[0])
     prob_v = laplacian_pdf(c.vRel + v_ego, lead.v[0], lead.vStd[0])
+    prob_m = 1.0 if c.measured else 0.5
 
     # This isn't exactly right, but it's a good heuristic
-    return prob_d * prob_y * prob_v
+    return prob_d * prob_y * prob_v * prob_m
 
   track = max(tracks.values(), key=prob)
 
