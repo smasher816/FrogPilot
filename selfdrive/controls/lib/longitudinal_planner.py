@@ -346,15 +346,15 @@ class LongitudinalPlanner:
     over = uncertainty > 1.0
     # Log on threshold edge or at ~1 Hz
     if over != self.prev_uncert_over or (now_t - self.last_uncert_log_t) > 1.0:
-      try:
-        cloudlog.error(
-          f"LON_UNCERT; v_ego={v_ego:.2f} mps; desireEntropy={desire_entropy:.3f}; "
-          f"brakeRawMax={(raw_brake_max if 'raw_brake_max' in locals() else -1.0):.3f}; "
-          f"brakeDecayed={(disengage_risk if 'disengage_risk' in locals() else -1.0):.3f}; "
-          f"lam={(lam if 'lam' in locals() else -1.0):.2f}; uncertainty={uncertainty:.3f}; over={over}"
-        )
-      except Exception as e:
-        cloudlog.warning(f"LON_UNCERT log error: {e}")
+      #try:
+      #  cloudlog.error(
+      #    f"LON_UNCERT; v_ego={v_ego:.2f} mps; desireEntropy={desire_entropy:.3f}; "
+      #    f"brakeRawMax={(raw_brake_max if 'raw_brake_max' in locals() else -1.0):.3f}; "
+      ##    f"brakeDecayed={(disengage_risk if 'disengage_risk' in locals() else -1.0):.3f}; "
+      #    f"lam={(lam if 'lam' in locals() else -1.0):.2f}; uncertainty={uncertainty:.3f}; over={over}"
+      #  )
+      #except Exception as e:
+      #  cloudlog.warning(f"LON_UNCERT log error: {e}")
       self.prev_uncert_over = over
       self.last_uncert_log_t = now_t
 
@@ -421,8 +421,8 @@ class LongitudinalPlanner:
     max_accel_change = np.max(np.abs(np.diff(self.mpc.a_solution)))
     if max_jerk > 5.0:  # m/s^3
       cloudlog.warning(f"High jerk detected: {max_jerk:.2f} m/s^3")
-    if max_accel_change > 2.0:  # m/s^2
-      cloudlog.warning(f"High acceleration change: {max_accel_change:.2f} m/s^2")
+    # if max_accel_change > 2.0:  # m/s^2
+    #   cloudlog.warning(f"High acceleration change: {max_accel_change:.2f} m/s^2")
 
     # Interpolate 0.05 seconds and save as starting point for next iteration
     a_prev = self.a_desired
