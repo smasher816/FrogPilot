@@ -138,7 +138,7 @@ class Track:
     return abs(self.yRel) < 1.0 and (v_ego < V_EGO_STATIONARY) and (0.75 < self.dRel < 25)
 
   def is_potential_fcw(self, model_prob: float):
-    return model_prob > .9
+    return model_prob > .9 or self.vRel > 30 or (self.vRel > 10. and self.dRel < 50.)
 
   def __str__(self):
     ret = f"x: {self.dRel:4.1f}  y: {self.yRel:4.1f}  v: {self.vRel:4.1f}  a: {self.aLeadK:4.1f}"
@@ -195,7 +195,7 @@ def get_RadarState_from_vision(lead_msg: capnp._DynamicStructReader, v_ego: floa
     "vLeadK": float(v_ego + lead_v_rel_pred),
     "aLeadK": blended_aLeadK,
     "aLeadTau": 0.3,
-    "fcw": False,
+    "fcw": float(lead_msg.prob) > .9,
     "modelProb": float(lead_msg.prob),
     "status": True,
     "radar": False,
