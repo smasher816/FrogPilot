@@ -630,6 +630,7 @@ struct RadarState @0x9a185389d6fdd05f {
     modelProb @13 :Float32;
     radar @14 :Bool;
     radarTrackId @15 :Int32 = -1;
+    vision @16 :Bool;
 
     aLeadDEPRECATED @5 :Float32;
   }
@@ -683,6 +684,8 @@ struct LiveTracks {
   currentTime @7 :Float32;
   stationary @8 :Bool;
   oncoming @9 :Bool;
+  measured @10 :Bool;
+  leadTrackID @11 :Int32;
 }
 
 struct ControlsState @0x97ff69c53601abf1 {

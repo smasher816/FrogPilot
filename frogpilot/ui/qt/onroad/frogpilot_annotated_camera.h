@@ -8,6 +8,8 @@
 
 const int widget_size = img_size + (UI_BORDER_SIZE / 2);
 
+const int MAX_ANNOTATED_RADAR_TRACKS = 2;
+
 class FrogPilotAnnotatedCameraWidget : public QWidget {
   Q_OBJECT
 
@@ -18,6 +20,7 @@ public:
   void paintBlindSpotPath(QPainter &p, const cereal::CarState::Reader &carState, const FrogPilotUIScene &frogpilot_scene);
   void paintFrogPilotWidgets(QPainter &p, UIState &s, FrogPilotUIState &fs, SubMaster &sm, SubMaster &fpsm, QJsonObject &frogpilot_toggles);
   void paintLeadMetrics(QPainter &p, bool adjacent, QPointF *chevron, const cereal::FrogPilotPlan::Reader &frogpilotPlan, const cereal::RadarState::LeadData::Reader &lead_data);
+  void paintRadarMetrics(QPainter &p, QPointF point, const RadarTrackData &radar_data, bool has_lead);
   void paintPathEdges(QPainter &p, const cereal::NavInstruction::Reader &navInstruction, const UIScene &scene, const FrogPilotUIScene &frogpilot_scene, SubMaster &sm);
   void paintRainbowPath(QPainter &p, QLinearGradient &bg, float lin_grad_point, SubMaster &sm);
   void updateState(const FrogPilotUIState &fs, const QJsonObject &frogpilot_toggles);
@@ -42,6 +45,7 @@ public:
   float speedConversionMetrics;
 
   QColor blueColor(int alpha = 255) { return QColor(0, 0, 255, alpha); }
+  QColor greenColor(int alpha = 242) { return QColor(23, 134, 68, alpha); }
   QColor purpleColor(int alpha = 255) { return QColor(128, 0, 128, alpha); }
 
   QPoint dmIconPosition;
@@ -72,7 +76,7 @@ private:
   void paintLongitudinalPaused(QPainter &p, FrogPilotUIScene &frogpilot_scene);
   void paintPedalIcons(QPainter &p, const cereal::CarState::Reader &carState, const cereal::FrogPilotCarState::Reader &frogpilotCarState, FrogPilotUIScene &frogpilot_scene, QJsonObject &frogpilot_toggles);
   void paintPendingSpeedLimit(QPainter &p, const cereal::FrogPilotPlan::Reader &frogpilotPlan);
-  void paintRadarTracks(QPainter &p, const cereal::ModelDataV2::Reader &model, UIState &s, FrogPilotUIScene &frogpilot_scene, SubMaster &sm, SubMaster &fpsm);
+  void paintRadarTracks(QPainter &p, const cereal::ModelDataV2::Reader &model, UIState &s, UIScene &scene, FrogPilotUIScene &frogpilot_scene, SubMaster &sm, SubMaster &fpsm, QJsonObject &frogpilot_toggles);
   void paintRoadName(QPainter &p);
   void paintSmartControllerTraining(QPainter &p, const cereal::FrogPilotPlan::Reader &frogpilotPlan);
   void paintSpeedLimitSources(QPainter &p, const cereal::FrogPilotCarState::Reader &frogpilotCarState, const cereal::FrogPilotNavigation::Reader &frogpilotNavigation, const cereal::FrogPilotPlan::Reader &frogpilotPlan);
@@ -92,7 +96,6 @@ private:
   Params params_memory{"/dev/shm/params"};
 
   QColor blackColor(int alpha = 255) { return QColor(0, 0, 0, alpha); }
-  QColor greenColor(int alpha = 242) { return QColor(23, 134, 68, alpha); }
   QColor redColor(int alpha = 255) { return QColor(201, 34, 49, alpha); }
   QColor whiteColor(int alpha = 255) { return QColor(255, 255, 255, alpha); }
 

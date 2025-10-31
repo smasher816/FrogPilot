@@ -240,6 +240,7 @@ struct FrogPilotRadarState @0xcb9fd56c7057593a {
     modelProb @13 :Float32;
     radar @14 :Bool;
     radarTrackId @15 :Int32 = -1;
+    vision @16 :Bool;
 
     aLeadDEPRECATED @5 :Float32;
   }

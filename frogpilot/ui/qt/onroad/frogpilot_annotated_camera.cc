@@ -225,7 +225,7 @@ void FrogPilotAnnotatedCameraWidget::paintFrogPilotWidgets(QPainter &p, UIState 
   }
 
   if (frogpilot_toggles.value("radar_tracks").toBool()) {
-    paintRadarTracks(p, model, s, frogpilot_scene, sm, fpsm);
+    paintRadarTracks(p, model, s, scene, frogpilot_scene, sm, fpsm, frogpilot_toggles);
   }
 
   if (frogpilot_toggles.value("road_name_ui").toBool()) {
@@ -568,6 +568,40 @@ void FrogPilotAnnotatedCameraWidget::paintLeadMetrics(QPainter &p, bool adjacent
   }
 }
 
+void FrogPilotAnnotatedCameraWidget::paintRadarMetrics(QPainter &p, QPointF point, const RadarTrackData &radar_data, bool has_lead) {
+  p.setPen(QPen(whiteColor()));
+  if (has_lead && radar_data.trackId == radar_data.leadTrackID) {
+    p.setFont(InterFont(35, QFont::Bold));
+  } else {
+    p.setFont(InterFont(35, QFont::Normal));
+  }
+
+  QString text = QString("T%1 | %2 %3")
+            .arg(radar_data.trackId)
+            .arg(QString::number(radar_data.vRel * speedConversionMetrics, 'f', 1))
+            .arg(leadSpeedUnit);
+
+  QFontMetrics metrics(p.font());
+  int textHeight = metrics.height();
+  int textWidth = metrics.horizontalAdvance(text);
+
+  int textX;
+  int textY;
+  if (has_lead && radar_data.trackId == radar_data.leadTrackID) {
+    float sz = std::clamp((25 * 30) / (radar_data.dRel / 3 + 30), 15.0f, 30.0f) * 2.35;
+    float x = std::clamp((float)point.x(), 0.f, width() - sz / 2);
+    float y = std::fmin(height() - sz * .6, (float)point.y());
+    QPointF chevron[] = {{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz}};
+    textX = ((chevron[2].x() + chevron[0].x()) / 2) - textWidth / 2;
+    textY = chevron[0].y() + textHeight + QFontMetrics(InterFont(40, QFont::Bold)).height();
+  } else {
+    textX = point.x() - textWidth / 2;
+    textY = point.y() + textHeight + 5;
+  }
+
+  p.drawText(textX, textY, text);
+}
+
 void FrogPilotAnnotatedCameraWidget::paintLongitudinalPaused(QPainter &p, FrogPilotUIScene &frogpilot_scene) {
   if (dmIconPosition == QPoint(0, 0)) {
     return;
@@ -702,24 +736,56 @@ void FrogPilotAnnotatedCameraWidget::paintPendingSpeedLimit(QPainter &p, const c
   p.restore();
 }
 
-void FrogPilotAnnotatedCameraWidget::paintRadarTracks(QPainter &p, const cereal::ModelDataV2::Reader &model, UIState &s, FrogPilotUIScene &frogpilot_scene, SubMaster &sm, SubMaster &fpsm) {
+void FrogPilotAnnotatedCameraWidget::paintRadarTracks(QPainter &p, const cereal::ModelDataV2::Reader &model, UIState &s, UIScene &scene, FrogPilotUIScene &frogpilot_scene, SubMaster &sm, SubMaster &fpsm, QJsonObject &frogpilot_toggles) {
   p.save();
 
   capnp::List<cereal::LiveTracks>::Reader liveTracks = fpsm["liveTracks"].getLiveTracks();
   update_radar_tracks(liveTracks, model.getPosition(), s, sm);
 
-  int diameter = 25;
-
-  QRect viewport = p.viewport();
+  int metrics_count = 0;
 
   for (std::size_t i = 0; i < frogpilot_scene.live_radar_tracks.size(); ++i) {
     const RadarTrackData &track = frogpilot_scene.live_radar_tracks[i];
 
-    float x = std::clamp(static_cast<float>(track.calibrated_point.x()), 0.0f, float(viewport.width() - diameter));
-    float y = std::clamp(static_cast<float>(track.calibrated_point.y()), 0.0f, float(viewport.height() - diameter));
+    float diameter = 25.f;
+    float alpha = 255.; // np.interp(strength, [0, 60], [100, 255])
 
-    p.setBrush(redColor());
-    p.drawEllipse(QPointF(x + diameter / 2.0f, y + diameter / 2.0f), diameter / 2.0f, diameter / 2.0f);
+    // glow
+    if (track.samples > 100) {
+      float glow_diameter = diameter + 10.f;
+      p.setBrush(QColor(218, 202, 37, 255));
+      p.drawEllipse(track.calibrated_point, glow_diameter / 2.0f, glow_diameter / 2.0f);
+    }
+
+    if (track.trackId == track.leadTrackID) {
+      p.setBrush(greenColor(alpha));
+    } else if (track.measured) {
+      p.setBrush(redColor());
+    } else {
+      p.setBrush(blueColor());
+    }
+    p.drawEllipse(track.calibrated_point, diameter / 2.0f, diameter / 2.0f);
+
+    if (frogpilot_toggles.value("lead_metrics").toBool()) {
+      QPointF point = track.calibrated_point;
+      bool has_radar_lead = track.leadTrackID != -1;
+      bool has_lead_chevron = scene.lead_vertices[0].x() != 0 && scene.lead_vertices[0].y() != 0;
+      if (has_lead_chevron && track.trackId == track.leadTrackID) {
+        point = scene.lead_vertices[0];
+      }
+
+    if (frogpilot_toggles.value("lead_metrics").toBool()) {
+      if (has_radar_lead) {
+        if (track.trackId == track.leadTrackID) {
+          paintRadarMetrics(p, point, track, has_lead_chevron);
+        }
+      } else {
+        if (track.measured && metrics_count < MAX_ANNOTATED_RADAR_TRACKS) {
+          paintRadarMetrics(p, point, track, has_lead_chevron);
+          metrics_count += 1;
+        }
+      }
+    }
   }
 
   p.restore();

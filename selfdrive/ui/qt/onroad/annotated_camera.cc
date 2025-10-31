@@ -464,11 +464,11 @@ void AnnotatedCameraWidget::drawLead(QPainter &painter, const cereal::RadarState
   const float v_rel = lead_data.getVRel();
 
   float fillAlpha = 0;
-  fillAlpha = 255 * (1.0 - (d_rel / leadBuff));
+  fillAlpha = 200 * (1.0 - (d_rel / leadBuff));
   if (v_rel < 0) {
-    fillAlpha += 255 * (-1 * (v_rel / speedBuff));
+    fillAlpha += 200 * (-1 * (v_rel / speedBuff));
   }
-  fillAlpha = std::clamp(fillAlpha, 0.f, 255.f);
+  fillAlpha = std::clamp(fillAlpha, 0.f, 200.f);
 
   float sz = std::clamp((25 * 30) / (d_rel / 3 + 30), 15.0f, 30.0f) * 2.35;
   float x = std::clamp((float)vd.x(), 0.f, width() - sz / 2);
@@ -483,11 +483,7 @@ void AnnotatedCameraWidget::drawLead(QPainter &painter, const cereal::RadarState
 
   // chevron
   QPointF chevron[] = {{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz}};
-  if (!adjacent && fs->frogpilot_scene.use_stock_colors) {
-    painter.setBrush(redColor(fillAlpha));
-  } else {
-    painter.setBrush(QColor(marker_color.red(), marker_color.green(), marker_color.blue(), fillAlpha));
-  }
+  painter.setBrush(QColor(marker_color.red(), marker_color.green(), marker_color.blue(), fillAlpha));
   painter.drawPolygon(chevron, std::size(chevron));
 
   if (fs->frogpilot_toggles.value("lead_metrics").toBool()) {
@@ -581,13 +577,36 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
         drawLead(painter, reinterpret_cast<const cereal::RadarState::LeadData::Reader &>(lead_right), frogpilotPlan, fs->frogpilot_scene.lead_vertices[1], frogpilot_nvg->purpleColor(), fs, true);
       }
       if (lead_one.getStatus()) {
-        drawLead(painter, lead_one, frogpilotPlan, s->scene.lead_vertices[0], lead_one.getModelProb() >= frogpilot_toggles.value("lead_detection_probability").toInt() ? fs->frogpilot_scene.lead_marker_color : whiteColor(), fs);
+        QColor lead_color;
+        if (lead_one.getRadar() and lead_one.getVision()) {
+          lead_color = frogpilot_nvg->greenColor();
+        } else if (lead_one.getRadar()) {
+          lead_color = frogpilot_nvg->blueColor();
+        } else if (lead_one.getVision() and lead_one.getModelProb() >= frogpilot_toggles.value("lead_detection_probability").toInt()) {
+          lead_color = redColor();
+        } else {
+          lead_color = whiteColor();
+        }
+        drawLead(painter, lead_one, frogpilotPlan, s->scene.lead_vertices[0], lead_color, fs);
       } else {
         frogpilot_nvg->leadTextRect = QRect();
       }
       if (lead_two.getStatus() && (std::abs(lead_one.getDRel() - lead_two.getDRel()) > 3.0)) {
-        drawLead(painter, lead_two, frogpilotPlan, s->scene.lead_vertices[1], fs->frogpilot_scene.lead_marker_color, fs);
+        QColor lead_color;
+        if (lead_one.getRadar() and lead_one.getVision()) {
+          lead_color = frogpilot_nvg->greenColor();
+        } else if (lead_one.getRadar()) {
+          lead_color = frogpilot_nvg->blueColor();
+        } else if (lead_one.getVision() and lead_one.getModelProb() >= frogpilot_toggles.value("lead_detection_probability").toInt()) {
+          lead_color = redColor();
+        } else {
+          lead_color = whiteColor();
+        }
+        drawLead(painter, lead_two, frogpilotPlan, s->scene.lead_vertices[1], lead_color, fs);
       }
+    } else {
+       s->scene.lead_vertices[0] = QPointF(0, 0);
+       s->scene.lead_vertices[1] = QPointF(0, 0);
     }
   }
 

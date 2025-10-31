@@ -12,6 +12,11 @@
 
 struct RadarTrackData {
   QPointF calibrated_point;
+  int trackId;
+  int leadTrackID;
+  bool measured;
+  float dRel;
+  float vRel;
 };
 
 struct FrogPilotUIScene {

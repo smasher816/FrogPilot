@@ -86,6 +86,11 @@ void update_radar_tracks(capnp::List<cereal::LiveTracks>::Reader &tracks_msg, ce
     if (calib_frame_to_full_frame(&s, dRel, -yRel, z + path_offset_z, &calibrated_point)) {
       RadarTrackData track;
       track.calibrated_point = calibrated_point;
+      track.trackId = track_msg.getTrackId();
+      track.leadTrackID = track_msg.getLeadTrackID();
+      track.measured = track_msg.getMeasured();
+      track.dRel = track_msg.getDRel();
+      track.vRel = track_msg.getVRel();
       frogpilot_scene.live_radar_tracks.push_back(track);
     }
   }

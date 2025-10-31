@@ -18,6 +18,16 @@ from openpilot.common.simple_kalman import KF1D
 from openpilot.frogpilot.common.frogpilot_variables import THRESHOLD, get_frogpilot_toggles
 from openpilot.selfdrive.controls.controlsd import LaneChangeDirection, LaneChangeState
 
+# Order RadarTracks to prioritize which are published
+class SortType:
+  NEAREST = 0      # Cloest to car
+  CENTER = 1       # Closet to center of lane
+  SPEED = 2        # Most movement
+
+SORT_BY = SortType.NEAREST
+MIN_OBJECTS = 1
+MAX_OBJECTS = 10
+
 # Default lead acceleration decay set to 50% at 1s
 _LEAD_ACCEL_TAU = 0.6
 
@@ -91,7 +101,7 @@ class Track:
 
     self.cnt += 1
 
-  def get_RadarState(self, model_prob: float = 0.0):
+  def get_RadarState(self, model_prob: float = 0.0, vision: bool = False):
     return {
       "dRel": float(self.dRel),
       "yRel": float(self.yRel),
@@ -104,11 +114,12 @@ class Track:
       "fcw": self.is_potential_fcw(model_prob),
       "modelProb": model_prob,
       "radar": True,
+      "vision": vision,
       "radarTrackId": self.identifier,
     }
 
   def potential_adjacent_lead(self, left: bool, standstill: bool, model_data: capnp._DynamicStructReader):
-    if standstill or self.vLead < 1 or self.leadTrackID == self.identifier:
+    if standstill or self.vLead < 1 or self.is_lead():
       return False
 
     if left:
@@ -140,6 +151,9 @@ class Track:
   def is_potential_fcw(self, model_prob: float):
     return model_prob > .9 or self.vRel > 30 or (self.vRel > 10. and self.dRel < 50.)
 
+  def is_lead(self):
+    return self.leadTrackID == self.identifier
+
   def __str__(self):
     ret = f"x: {self.dRel:4.1f}  y: {self.yRel:4.1f}  v: {self.vRel:4.1f}  a: {self.aLeadK:4.1f}"
     return ret
@@ -151,6 +165,8 @@ def laplacian_pdf(x: float, mu: float, b: float):
 
 
 def match_vision_to_track(v_ego: float, lead: capnp._DynamicStructReader, model_data: capnp._DynamicStructReader, tracks: dict[int, Track], frogpilot_toggles: SimpleNamespace):
+  if not tracks:
+    return {'status': False}
   if model_data.meta.laneChangeState == LaneChangeState.laneChangeStarting and getattr(frogpilot_toggles, "human_lane_changes", False):
     direction = model_data.meta.laneChangeDirection
 
@@ -177,9 +193,9 @@ def match_vision_to_track(v_ego: float, lead: capnp._DynamicStructReader, model_
   dist_sane = abs(track.dRel - offset_vision_dist) < max([(offset_vision_dist)*.25, 5.0])
   vel_sane = (abs(track.vRel + v_ego - lead.v[0]) < 10) or (v_ego + track.vRel > 3)
   if dist_sane and vel_sane:
-    return track
+    return track.get_RadarState(lead.prob, vision=True)
   else:
-    return None
+    return {'status': False}
 
 
 def get_RadarState_from_vision(lead_msg: capnp._DynamicStructReader, v_ego: float, model_v_ego: float):
@@ -199,6 +215,7 @@ def get_RadarState_from_vision(lead_msg: capnp._DynamicStructReader, v_ego: floa
     "modelProb": float(lead_msg.prob),
     "status": True,
     "radar": False,
+    "vision": True,
     "radarTrackId": -1,
   }
 
@@ -207,18 +224,18 @@ def get_lead(v_ego: float, ready: bool, tracks: dict[int, Track], lead_msg: capn
              model_v_ego: float, model_data: capnp._DynamicStructReader, standstill: bool,
              frogpilotPlan: capnp._DynamicStructReader, frogpilot_toggles: SimpleNamespace,
              low_speed_override: bool = True) -> dict[str, Any]:
+
   # Determine leads, this is where the essential logic happens
-  if len(tracks) > 0 and ready and lead_msg.prob > frogpilot_toggles.lead_detection_probability:
-    track = match_vision_to_track(v_ego, lead_msg, model_data, tracks, frogpilot_toggles)
+  if ready and lead_msg.prob > frogpilot_toggles.lead_detection_probability:
+    vision_dict = get_RadarState_from_vision(lead_msg, v_ego, model_v_ego)
+    radar_dict = match_vision_to_track(v_ego, lead_msg, model_data, tracks, frogpilot_toggles)
+    lead_dict = radar_dict if radar_dict['status'] else vision_dict
   else:
-    track = None
+    radar_dict = {'status': False}
+    vision_dict = {'status': False}
+    lead_dict = {'status': False}
 
-  lead_dict = {'status': False}
-  if track is not None:
-    lead_dict = track.get_RadarState(lead_msg.prob)
-  elif (track is None) and ready and (lead_msg.prob > frogpilot_toggles.lead_detection_probability):
-    lead_dict = get_RadarState_from_vision(lead_msg, v_ego, model_v_ego)
-
+  # Find a radar only lead without vision confirmation
   if low_speed_override:
     low_speed_tracks = [c for c in tracks.values() if c.potential_low_speed_lead(v_ego)]
     if len(low_speed_tracks) > 0:
@@ -228,14 +245,17 @@ def get_lead(v_ego: float, ready: bool, tracks: dict[int, Track], lead_msg: capn
       if (not lead_dict['status']) or (closest_track.dRel < lead_dict['dRel']):
         lead_dict = closest_track.get_RadarState()
 
+    # If there is no close lead, look for a far lead
     if not lead_dict['status'] and len(tracks) > 0:
       far_lead_tracks = [c for c in tracks.values() if c.potential_far_lead(standstill, model_data) and c.radarfulFilter.x >= THRESHOLD]
       if len(far_lead_tracks) > 0:
         closest_track = min(far_lead_tracks, key=lambda c: c.dRel)
         lead_dict = closest_track.get_RadarState()
 
-  for track in tracks.values():
-    track.leadTrackID = lead_dict.get('radarTrackId', -1)
+  leadTrackID = lead_dict.get('radarTrackId', -1)
+  if leadTrackID != -1:
+    for track in tracks.values():
+      track.leadTrackID = leadTrackID
 
   if 'dRel' in lead_dict:
     lead_dict['dRel'] -= frogpilotPlan.increasedStoppedDistance
@@ -298,11 +318,16 @@ class RadarD:
     for ids in list(self.tracks.keys()):
       outside_road_edges = False
       if len(sm['modelV2'].roadEdges) == 2 and len(sm['modelV2'].roadEdges[0].x) > 1 and len(sm['modelV2'].roadEdges[1].x) > 1:
-        left_edge_y = interp(self.tracks[ids].dRel, sm['modelV2'].roadEdges[0].x, sm['modelV2'].roadEdges[0].y)
-        right_edge_y = interp(self.tracks[ids].dRel, sm['modelV2'].roadEdges[1].x, sm['modelV2'].roadEdges[1].y)
+        left_edge_y = interp(self.tracks[ids].dRel, sm['modelV2'].roadEdges[0].x, sm['modelV2'].roadEdges[0].y) # -4.923978365384615
+        radar_track_y = -self.tracks[ids].yRel # -0.6000000238418579
+        right_edge_y = interp(self.tracks[ids].dRel, sm['modelV2'].roadEdges[1].x, sm['modelV2'].roadEdges[1].y) # 3.6400240384615383
 
-        if not (right_edge_y < -self.tracks[ids].yRel < left_edge_y):
+        if not (left_edge_y < radar_track_y < right_edge_y):
+          # print(ids, "OUTSIDE ROAD", left_edge_y, radar_track_y, right_edge_y)
+          self.tracks[ids].measured = False
           outside_road_edges = True
+        # else:
+        #   print(ids, "INSIDE ROAD", left_edge_y, radar_track_y, right_edge_y)
 
       if ids not in ar_pts or outside_road_edges:
         self.tracks.pop(ids, None)
@@ -334,7 +359,10 @@ class RadarD:
       model_v_ego = self.v_ego
     leads_v3 = sm['modelV2'].leadsV3
     if len(leads_v3) > 1:
-      self.radar_state.leadOne = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, sm['modelV2'], sm['carState'].standstill, sm['frogpilotPlan'], self.frogpilot_toggles, low_speed_override=True)
+      leadOne = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, sm['modelV2'], sm['carState'].standstill, sm['frogpilotPlan'], self.frogpilot_toggles, low_speed_override=True)
+      # if leadOne['status']:
+      #   print(leadOne)
+      self.radar_state.leadOne = leadOne
       self.radar_state.leadTwo = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[1], model_v_ego, sm['modelV2'], sm['carState'].standstill, sm['frogpilotPlan'], self.frogpilot_toggles, low_speed_override=False)
 
     if self.frogpilot_toggles.adjacent_lead_tracking and self.ready:
@@ -359,15 +387,37 @@ class RadarD:
     frogpilot_radar_msg.frogpilotRadarState = self.frogpilot_radar_state
     pm.send("frogpilotRadarState", frogpilot_radar_msg)
 
+    # Sort by selected mode
+    tids = self.tracks.keys()
+    if SORT_BY == SortType.NEAREST:
+      tids = sorted(self.tracks, key=lambda tid: self.tracks[tid].dRel)
+    elif SORT_BY == SortType.CENTER:
+      tids = sorted(self.tracks, key=lambda tid: abs(self.tracks[tid].yRel))
+    elif SORT_BY == SortType.SPEED:
+      tids = sorted(self.tracks, key=lambda tid: abs(self.tracks[tid].vRel), reverse=True)
+
+    # Report measured tids first, followed by unmeasured if there are not enough data points
+    # Cap to MAX_OBJECTS to avoid spam
+    lead_tids = [tid for tid in tids if self.tracks[tid].is_lead()]
+    measured_tids = [tid for tid in tids if self.tracks[tid].measured]
+    tids = lead_tids + measured_tids
+    if len(tids) < MIN_OBJECTS:
+      unmeasured_tids = [tid for tid in tids if not self.tracks[tid].measured]
+      tids += unmeasured_tids
+    tids = tids[:MAX_OBJECTS]
+
     # publish tracks for UI debugging (keep last)
-    tracks_msg = messaging.new_message('liveTracks', len(self.tracks))
+    tracks_msg = messaging.new_message('liveTracks', len(tids))
     tracks_msg.valid = self.radar_state_valid
-    for index, tid in enumerate(sorted(self.tracks.keys())):
+
+    for index, tid in enumerate(tids):
       tracks_msg.liveTracks[index] = {
         "trackId": tid,
         "dRel": float(self.tracks[tid].dRel),
         "yRel": float(self.tracks[tid].yRel),
         "vRel": float(self.tracks[tid].vRel),
+        "measured": self.tracks[tid].measured,
+        "leadTrackID": self.tracks[tid].leadTrackID,
       }
     pm.send('liveTracks', tracks_msg)
 
