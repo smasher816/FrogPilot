@@ -406,7 +406,7 @@ void AnnotatedCameraWidget::drawDriverState(QPainter &painter, const UIState *s,
 
   // base icon
   int offset = UI_BORDER_SIZE + btn_size / 2;
-  int x = rightHandDM ? width() - offset : offset;
+  int x = rightHandDM ? width() - UI_BORDER_SIZE - 10 : UI_BORDER_SIZE + 10;
   if (distance_btn->isEnabled()) {
     if (rightHandDM) {
       x -= UI_BORDER_SIZE + distance_btn->width() + UI_BORDER_SIZE;
@@ -417,9 +417,12 @@ void AnnotatedCameraWidget::drawDriverState(QPainter &painter, const UIState *s,
   if (frogpilot_toggles.value("road_name_ui").toBool()) {
     offset += UI_BORDER_SIZE;
   }
-  int y = height() - offset;
+  int y = height() - offset + 20;
   frogpilot_nvg->dmIconPosition.setX(x);
   frogpilot_nvg->dmIconPosition.setY(y);
+  painter.restore();
+  return;
+
   float opacity = dmActive ? 0.65 : 0.2;
   drawIcon(painter, QPoint(x, y), dm_img, blackColor(70), opacity);
 

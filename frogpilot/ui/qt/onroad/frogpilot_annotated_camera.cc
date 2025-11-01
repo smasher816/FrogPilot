@@ -335,7 +335,7 @@ void FrogPilotAnnotatedCameraWidget::paintCEMStatus(QPainter &p, const cereal::F
 
   cemStatusPosition.rx() = dmIconPosition.x();
   cemStatusPosition.ry() = dmIconPosition.y() - widget_size / 2;
-  cemStatusPosition.rx() += (rightHandDM ? -img_size - widget_size : widget_size) / (frogpilot_scene.map_open ? 1.25 : 1);
+  cemStatusPosition.rx() += (rightHandDM ? -img_size : 0) / (frogpilot_scene.map_open ? 1.25 : 1);
 
   QRect cemWidget(cemStatusPosition, QSize(widget_size, widget_size));
 
